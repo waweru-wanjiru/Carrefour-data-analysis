@@ -1,0 +1,505 @@
+---
+title: "Carrefour data analysis"
+author: "Simon waweru"
+date: "2020 M11 15"
+output: pdf_document
+---
+
+# Business understanding
+Carrefour is a French multinational corporation that specializes in retail.It operates in many countries including UAE,Autralia,Brazil and closer home,Kenya,among many others.
+
+Carrefour is located in 7 major areas in Kenya.
+
+## Business understanding
+As as Data analyst at Carrefour Kenya and are currently undertaking a project that will inform the marketing department on the most relevant marketing strategies that will result in the highest no. of sales (total price including tax). 
+
+## Experimental design
+The project has been divided into four parts where I explore a recent marketing dataset by performing various unsupervised learning techniques and later providing recommendations based on your insights.
+
+Part 1: Dimensionality Reduction
+
+This section of the project entails reducing the dataset to a low dimensional dataset using  PCA. 
+
+Part 2: Feature Selection
+
+This section requires you to perform feature selection through the use of the unsupervised learning methods . 
+
+Part 3: Association Rules
+
+This section will require that  creates association rules that will allow you to identify relationships between variables in the dataset.
+
+Part 4: Anomaly Detection
+
+I will check whether there are any anomalies in the given sales dataset. The objective of this task being fraud detection.
+
+## Assessing the situation at hand
+### Resources inventory
+#### Datasets 
+
+The datasets can be sourced from the following sites
+1.) For Part 1 and 2:https://archive.org/download/supermarketdataset1salesdata/Supermarket_Dataset_1%20-%20Sales%20Data.csv
+
+
+2.) For Part 3:https://archive.org/download/supermarketsalesdatasetii/Supermarket_Sales_Dataset%20II.csv
+
+
+3.) For Part 4:https://archive.org/download/supermarketsalesforecastingsales/Supermarket_Sales_Forecasting%20-%20Sales.csv
+
+Software (Github,R)
+
+## Assumptions 
+The data is up to date and relevant.
+## Constraints
+There are no constraints currently.
+
+
+# Part 1: Dimensionality Reduction
+
+This section of the project entails reducing your dataset to a low dimensional dataset using  PCA. I will  perform  analysis and provide insights gained from the analysis.
+
+## Loading in our datasets
+```{r}
+library(data.table)
+data1 <- fread('http://bit.ly/CarreFourDataset')
+View(data1)
+```
+
+## Data understanding
+Preview of the head of the dataset
+```{r}
+head(data1,4)
+```
+
+## Preview of tail of the dataset
+```{r}
+tail(data1,4)
+```
+
+No of columns and obsevations per variable
+```{r}
+dim(data1)
+```
+The dataset has 1000 observations of 16 variables
+
+## Summary statistics about variables.
+```{r}
+library(skimr)
+skim(data1)
+```
+
+## Summary of variables
+```{r}
+names(data1)
+```
+
+## Summary of their datatypes
+```{r}
+sapply(data1,class)
+```
+
+## Data cleaning
+
+```{r}
+library(tidyverse)
+```
+
+### 1.Missing/Null values
+```{r}
+colSums(is.na(data))
+```
+From the above summary,we can see that thedataset has no missing values
+
+### 2. Duplicates
+```{r}
+data1_dd<- data1[duplicated(data1),]
+dim(data1_dd)
+```
+As we can see, our dataset has no duplicates
+
+### 3. Check for data types
+```{r}
+str(data1)
+```
+
+### 4. Correct some datatypes
+During our check for datatypes,we noticed that some of the variables have been assigned the wrong datatype.We,therefore correct this.
+In this stage,we will also split the date column to our preferred format.
+
+We change some of the columns with the character datatype to numerical datatype
+```{r}
+data1$Branch <- as.integer(as.factor(data1$Branch))
+data1$`Customer type` <- as.integer(as.factor(data1$`Customer type`))
+data1$Gender <- as.integer(as.factor(data1$Gender))
+data1$`Product line` <-as.integer(as.factor(data1$`Product line`))
+data1$Payment <-as.integer(as.factor(data1$Payment))
+```
+
+We then change the format in the date & time column.
+```{r}
+data1$Date_Time =  strptime(paste(data1$Date, data1$Time), format="%m/%d/%Y %M:%S")
+```
+
+Let's check our dataset once more
+```{r}
+str(data1)
+```
+
+Remove the unnecesary columns
+```{r}
+data1 <- data1[,c(-9,-10)]
+names(data1)
+```
+
+### 5. Check for outliers
+```{r}
+num <- select_if(data1, is.numeric)# Select numerical columns only
+boxplot(num,
+main = "Outliers in Numerical Columns",
+xlab = "Columns",
+col = "maroon",
+border = "pink")
+```
+
+We see some outliers on cogs,Total columns,Tax and Ratings.
+
+## Correlations
+```{r}
+data.num<-select_if(data1,is.numeric)
+data.num
+data.cor = cor(data.num)
+library(corrplot)
+corrplot(data.cor, type = 'lower')
+```
+
+## Principal Component Analysis
+
+Principal component analysis (PCA) is a method to project data in a higher dimensional space into a lower dimensional space by maximizing the variance of each dimension.
+
+PCA is applied to numerical values only
+
+## Select numeric columns
+
+```{r}
+# Importing the library dplyr
+library(dplyr)
+super_num <- select_if(data1, is.numeric)
+```
+
+## Dropping unnecessary
+```{r}
+super_num = super_num[,c(-4,-5,-10)]
+names(super_num)
+```
+
+
+
+```{r}
+super_num.pca <- prcomp(super_num, center = TRUE, scale. = T)
+summary(super_num.pca)
+```
+
+```{r}
+library(scales)
+library(devtools)
+install_github("vqv/ggbiplot")
+library(ggbiplot)
+ggbiplot(super_num.pca)
+```
+
+
+Each explain a percentate of the total variation of the dataset'
+
+PC1 explains 45% of the total variance
+PC2 explains 56% of the variance and so on.
+
+
+By PC5, we have 86% of the total variance explained by the components
+
+# Part 2: Feature Selection
+
+This section requires you to perform feature selection through the use of the unsupervised learning methods learned earlier this week. You will be required to perform your analysis and provide insights on the features that contribute the most information to the dataset.
+
+
+## Reloading the sales dataset
+Due to the many changes that we had carried out earlier,we will reload the previous dataset again to maintain its original state while carrying out feature selection
+```{r}
+fsdf <- fread('http://bit.ly/CarreFourDataset')
+View(fsdf)
+```
+
+When we had explored the dataset earlier we found the dataset had no null values or null values.However,we found out that it had some outliers and some of the variables had been assigned the wrong datatypes.
+
+We,therefore,tweak the dataset to our prefered format.
+
+## Correcting the datatypes
+```{r echo=TRUE}
+fsdf$Branch <- as.integer(as.factor(fsdf$Branch))
+fsdf$`Customer type` <- as.integer(as.factor(fsdf$`Customer type`))
+fsdf$Gender <- as.integer(as.factor(fsdf$Gender))
+fsdf$`Product line` <-as.integer(as.factor(fsdf$`Product line`))
+fsdf$Payment <-as.integer(as.factor(fsdf$Payment))
+```
+
+We then change the format in the date & time column 
+```{r echo=TRUE}
+fsdf$Date_Time =  strptime(paste(fsdf$Date, fsdf$Time), format="%m/%d/%Y %M:%S")
+```
+
+```{r echo=TRUE}
+names(fsdf)
+```
+
+## Subsetting the data.
+```{r echo=TRUE}
+fsdf_f <- subset( fsdf, select = -c(`Invoice ID`  , Date, Time,`gross margin percentage`))
+names(fsdf_f)
+```
+
+## Loading required libraries
+```{r}
+library(caret)
+library(corrplot)
+```
+## Selecting numerical variables with an standadard deviation greater than 0
+```{r echo=TRUE}
+# Remove columns with standard deviation of zero
+data.num <-select_if(fsdf_f,is.numeric)
+head(data.num,4)
+```
+```{r echo=TRUE}
+CM <- cor(data.num)
+CM
+```
+
+## Get variables with high correlation and list them out
+```{r}
+H_CM <- findCorrelation(CM, cutoff=0.75)
+H_CM
+
+```
+
+The variables that are highly correlated are cogs,total and tax.
+
+## Plot out of the original numerical variables in comparison to selected ones
+```{r}
+fsdf_fd<-data.num[-H_CM]# Remove highly corelated variabes
+par(mfrow = c(1, 2))
+corrplot(CM)
+corrplot(cor(fsdf_fd), order = "hclust")
+```
+
+With feature selection done,we have removed irrelevant and unnecessary variables
+
+# Part 3: Association Rules
+
+This section will require that you create association rules that will allow you to identify relationships between variables in the dataset. You are provided with a separate dataset that comprises groups of items that will be associated with others. Just like in the other sections, you will also be required to provide insights for your analysis.
+
+## Import the neccesary package
+```{r}
+library(arules)
+```
+
+## Loading in our data
+```{r}
+a_df <- read.transactions('http://bit.ly/SupermarketDatasetII',sep = ",")
+```
+
+```{r}
+class(a_df)
+```
+
+##Statistical summary of the data
+```{r}
+summary(a_df)
+```
+
+From the above analysis ,we can see that mineral water leads in sales followed by eggs and so on
+
+## Building a model based on association rules using the apriori function 
+We use Min Support as 0.001 and confidence as 0.8
+
+
+```{r}
+rules <- apriori (a_df, parameter = list(supp = 0.001, conf = 0.8))
+rules
+```
+
+```{r}
+# We use measures of significance and interest on the rules, 
+# determining which ones are interesting and which to discard.
+# ---
+# However since we built the model using 0.001 Min support 
+# and confidence as 0.8 we obtained 74 rules.
+# However, in order to illustrate the sensitivity of the model to these two parameters, 
+# we will see what happens if we increase the support or lower the confidence level
+# 
+# Building a apriori model with Min Support as 0.002 and confidence as 0.8.
+rules2 <- apriori (a_df,parameter = list(supp = 0.002, conf = 0.8)) 
+# Building apriori model with Min Support as 0.002 and confidence as 0.6.
+rules3 <- apriori (a_df, parameter = list(supp = 0.001, conf = 0.6)) 
+rules2
+rules3
+```
+
+In the second model, we increased the minimum support of 0.001 to 0.002 and model rules went from 74 to only 2. 
+
+In the third model, we decreased the minimum confidence level to 0.6 and the number of model rules went from 74 to 545. 
+
+```{r}
+# We can perform an exploration of our model 
+# through the use of the summary function as shown
+# ---
+# Upon running the code, the function would give us information about the model 
+# i.e. the size of rules, depending on the items that contain these rules. 
+# In our above case, most rules have 3 and 4 items though some rules do have upto 6. 
+# More statistical information such as support, lift and confidence is also provided.
+# ---
+# 
+summary(rules)
+```
+
+
+
+```{r}
+# Observing rules built in our model i.e. first 5 model rules
+# ---
+# 
+inspect(rules[1:5])
+```
+
+## Interpretation of the first rule
+This means if someone buys frozen smoothie and spinach, they are 89% likely to buy mineral water too.
+
+```{r}
+# Ordering these rules by a criteria such as the level of confidence
+# then looking at the first five rules.
+# We can also use different criteria such as: (by = "lift" or by = "support")
+# 
+rules<-sort(rules, by="confidence", decreasing=TRUE)
+inspect(rules[1:5])
+```
+
+The first four rules have a confidence of 100%
+
+
+```{r}
+# If we're interested in making a promotion relating to the sale of milk, 
+# we could create a subset of rules concerning these products 
+# ---
+# This would tell us the items that the customers bought before purchasing mineral
+# ---
+# 
+milk <- subset(rules, subset = rhs %pin% "milk")
+ 
+# Then order by confidence
+milk <-sort(milk, by="count", decreasing=TRUE)
+inspect(milk[1:5])
+```
+
+The first 5 rules by count..
+meatballs,whole wheat pasta and milk were in 10 baskets.
+Black tea frozen smoothie and milk were in 9 shopping baskets.
+cake, meatballs,mineral waterr and milk were in 8 shopping baskets
+
+# Part 4: Anomaly Detection
+
+You have also been requested to check whether there are any anomalies in the given sales dataset. The objective of this task being fraud detection.
+
+```{r}
+Forecasting <- fread('http://bit.ly/CarreFourSalesDataset')
+View(Forecasting)
+```
+
+## Data Exploration
+```{r}
+dim(Forecasting)
+```
+
+```{r}
+str(Forecasting)
+```
+
+## Tidying the dataset
+### Converting variables to our prefered format
+```{r}
+Forecasting$Date <- as.Date(Forecasting$Date, "%m/%d/%Y")
+```
+
+## Data visualization
+```{r}
+hist(Forecasting$Sales,col="cyan")
+```
+
+
+```{r}
+# Sales distribution over time
+library(ggplot2)
+ggplot(data = Forecasting, aes(x = Date, y = Sales)) +
+      geom_bar(stat = "identity", fill = "purple") +
+      labs(title = "Sales distribution",
+           x = "Date", y = "Sales(ksh)")
+```
+
+```{r}
+# Load libraries
+library(tidyverse)
+library(anomalize)
+library(tibbletime)
+```
+
+
+
+```{r}
+#Ordering the data by Date
+Forecasting = Forecasting %>% arrange(Date)
+head(Forecasting)
+```
+
+```{r}
+# Since our data has many records per day, 
+# We get the average per day, so that the data
+Forecasting = aggregate(Sales ~ Date , Forecasting , mean)
+head(Forecasting)
+```
+
+
+
+
+```{r}
+# Converting data frame to a tibble time (tbl_time)
+# tbl_time have a time index that contains information about which column 
+# should be used for time-based subsetting and other time-based manipulation,
+Forecasting = tbl_time(Forecasting, Date)
+class(Forecasting)
+```
+
+# Detecting our anomalies
+
+We now use the following functions to detect and visualize anomalies; 
+We decomposed the “count” column into “observed”, “season”, “trend”, and “remainder” columns. 
+The default values for time series decompose are method = "stl", which is just seasonal decomposition using a Loess smoother (refer to stats::stl()). 
+The frequency and trend parameters are automatically set based on the time scale (or periodicity) of the time series using tibbletime based function under the hood.
+
+* time_decompose() - this function would help with time series decomposition.
+
+*anomalize() - We perform anomaly detection on the decomposed data using the remainder column through the use of the anomalize() function which procides 3 new columns; “remainder_l1” (lower limit), “remainder_l2” (upper limit), and “anomaly” (Yes/No Flag).
+The default method is method = "iqr", which is fast and relatively accurate at detecting anomalies. 
+The alpha parameter is by default set to alpha = 0.05, but can be adjusted to increase or decrease the height of the anomaly bands, making it more difficult or less difficult for data to be anomalous. 
+The max_anoms parameter is by default set to a maximum of max_anoms = 0.2 for 20% of data that can be anomalous. 
+
+* time_recompose()- We create the lower and upper bounds around the “observed” values through the use of the time_recompose() function, which recomposes the lower and upper bounds of the anomalies around the observed values.
+We create new columns created: “recomposed_l1” (lower limit) and “recomposed_l2” (upper limit).
+
+* plot_anomalies() - we now plot using plot_anomaly_decomposition() to visualize out data.
+
+
+```{r}
+Forecasting %>%
+    time_decompose(Sales) %>%
+    anomalize(remainder) %>%
+    time_recompose() %>%
+    plot_anomalies(time_recomposed = TRUE, ncol = 3, alpha_dots = 0.5)
+```
+
+
+Our data has no anomaly.
